@@ -2,7 +2,7 @@
 
 ## Profile selection
 
-Contact commands operate on the selected Graph profile. Use `GRAPH_PROFILE=work python scripts/contacts_ops.py list` or `python scripts/contacts_ops.py --profile work list`. If omitted, the `default` profile is used. See [`auth.md`](auth.md).
+Contact commands operate on the selected Graph profile. Recommended for agents/OpenClaw: use `GRAPH_PROFILE=work python scripts/contacts_ops.py list` or `python scripts/contacts_ops.py --profile work list`. If omitted, the `default` profile is used. See [`auth.md`](auth.md).
 
 ## List contacts
 

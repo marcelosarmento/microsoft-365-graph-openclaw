@@ -25,25 +25,19 @@ export REPO_ROOT="$(pwd)"
 
 ### 2. Authenticate
 
-Profile note: omitting `--profile` uses the backward-compatible `default` profile (`state/graph_auth.json`). For multi-account setups, add `--profile personal` or `--profile work` and run later Graph commands with the same profile, usually by prefixing `GRAPH_PROFILE=<name>`.
+Profile note: omitting `--profile` uses the backward-compatible `default` profile (`state/graph_auth.json`). For multi-account setups, add `--profile personal` or `--profile work` and run later Graph commands with the same profile, preferably by prefixing `GRAPH_PROFILE=<name>`. Built-in `personal` and `work` profiles already know their tenant/client/scopes; custom profiles can live in `state/graph_profiles.json`.
 
 
 Personal account (Outlook/Hotmail):
 
 ```bash
-python3 scripts/graph_auth.py device-login \
-  --profile personal \
-  --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 \
-  --tenant-id consumers
+python3 scripts/graph_auth.py device-login --profile personal
 ```
 
 Work/school account:
 
 ```bash
-python3 scripts/graph_auth.py device-login \
-  --profile work \
-  --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 \
-  --tenant-id organizations
+python3 scripts/graph_auth.py device-login --profile work
 ```
 
 Open the URL shown by the script, paste the device code, and authorize.

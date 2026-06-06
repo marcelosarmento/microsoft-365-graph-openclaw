@@ -58,17 +58,18 @@ See full architecture and flow in `docs/architecture.md`.
 
 ## Multiple Microsoft Graph profiles
 
-The skill supports separate Graph profiles for multiple accounts or tenants. Use `personal` for a Microsoft personal account, `work` for a primary organization account, and names like `work-empresa1` for additional tenants.
+The skill supports separate Graph profiles for multiple accounts or tenants. A profile is a full Graph context: client ID, tenant ID, default scopes, and token/cache path. Use `personal` for a Microsoft personal account, `work` for a primary organization account, and names like `work-empresa1` for additional tenants.
 
 - No profile / `default` keeps the original single-login token at `state/graph_auth.json`.
-- Named profiles use separate token caches such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
-- For simple OpenClaw usage, prefix any command with `GRAPH_PROFILE=<name>`; auth commands also support `--profile <name>`.
+- Built-in `personal` and `work` profiles work without a config file and use separate token caches such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
+- Custom profiles can be declared in `state/graph_profiles.json` or another JSON file via `GRAPH_PROFILES_FILE`.
+- Recommended for agents/OpenClaw: prefix any command with `GRAPH_PROFILE=<name>` because it works uniformly for every script and avoids `--profile` position rules.
 
 Examples:
 
 ```bash
-python3 scripts/graph_auth.py device-login --profile personal --tenant-id consumers
-python3 scripts/graph_auth.py device-login --profile work --tenant-id organizations
+python3 scripts/graph_auth.py device-login --profile personal
+python3 scripts/graph_auth.py device-login --profile work
 GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 10
 GRAPH_PROFILE=personal python3 scripts/drive_ops.py list --path /
 ```

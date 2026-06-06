@@ -14,7 +14,9 @@ For first-time setup, EC2/Caddy/systemd installation, OpenClaw hook configuratio
 
 ## Profile selection
 
-Mail subscriptions and the optional `agent` worker fetch must use the Graph profile for the mailbox that owns the subscription. If the push pipeline was created with the backward-compatible `default` profile, no extra flag is needed. For another mailbox, prefer the environment form so it also fits services and automation:
+Mail subscriptions and the optional `agent` worker fetch must use the Graph profile for the mailbox that owns the subscription. If the push pipeline was created with the backward-compatible `default` profile, no extra flag is needed. For another mailbox, prefer the environment form so it also fits services and automation.
+
+Do **not** try to operate push simultaneously for multiple profiles through the same worker queue/dedupe/subscription state. If multiple profile push pipelines are needed, run clearly separated workers/services with separate `GRAPH_PROFILE`, queue files, dedupe files, and subscription tracking. Treat multi-profile push as an advanced/future setup, not a daily workflow.
 
 ```bash
 GRAPH_PROFILE=work python3 scripts/mail_subscriptions.py list

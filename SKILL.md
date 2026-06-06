@@ -45,18 +45,19 @@ Permission profiles are in [`docs/permission-profiles.md`](docs/permission-profi
 
 ## Profiles / account contexts
 
-Use **profiles** when the same agent needs more than one Microsoft Graph account. Recommended names are `personal`, `work`, and specific names like `work-empresa1` for additional tenants.
+Use **profiles** when the same agent needs more than one Microsoft Graph account. A profile is a complete Graph context: client ID, tenant ID, default scopes, and token/cache path. Recommended names are `personal`, `work`, and specific names like `work-empresa1` for additional tenants.
 
 - If no profile is provided, scripts use `default` and the existing `state/graph_auth.json` token cache. This preserves the original single-login workflow.
-- Named profiles use separate token files such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
-- For OpenClaw-style simplicity, prefer per-command environment selection: `GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 20`.
+- Built-ins: `personal` uses tenant `consumers`; `work` uses tenant `organizations`; both use default skill scopes and separate token files.
+- Optional custom profile config lives in `state/graph_profiles.json` (or `GRAPH_PROFILES_FILE`) and can set `client_id`, `tenant_id`, `scopes`, and `auth_file`.
+- For agents/OpenClaw, prefer per-command environment selection: `GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 20`. It works the same way for every script and avoids confusion about `--profile` position.
 - CLI selection is also supported. Auth commands use `--profile` after the auth subcommand; scripts with subcommands use `--profile` before the subcommand.
 
 Authenticate each profile separately:
 
 ```bash
-python3 scripts/graph_auth.py device-login --profile personal --tenant-id consumers
-python3 scripts/graph_auth.py device-login --profile work --tenant-id organizations
+python3 scripts/graph_auth.py device-login --profile personal
+python3 scripts/graph_auth.py device-login --profile work
 ```
 
 Check the target profile before account-sensitive operations:
@@ -73,13 +74,10 @@ See [`references/auth.md`](references/auth.md) for profile naming, token paths, 
 Start device-code login for the target profile:
 
 ```bash
-python3 scripts/graph_auth.py device-login \
-  --profile personal \
-  --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 \
-  --tenant-id consumers
+python3 scripts/graph_auth.py device-login --profile personal
 ```
 
-For work/school accounts, use `--profile work` with `--tenant-id organizations` or the tenant GUID.
+For work/school accounts, use `--profile work`; the built-in `work` profile uses tenant `organizations`. Use `state/graph_profiles.json` or one-off login overrides only for custom tenants/apps.
 
 Check and maintain auth state for the target profile:
 

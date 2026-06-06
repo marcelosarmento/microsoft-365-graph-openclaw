@@ -2,7 +2,7 @@
 
 ## Profile selection
 
-OneDrive commands operate on the selected Graph profile. Use `GRAPH_PROFILE=personal python scripts/drive_ops.py list --path /` or `python scripts/drive_ops.py --profile personal list --path /`. If omitted, the `default` profile is used. See [`auth.md`](auth.md).
+OneDrive commands operate on the selected Graph profile. Recommended for agents/OpenClaw: use `GRAPH_PROFILE=personal python scripts/drive_ops.py list --path /` or `python scripts/drive_ops.py --profile personal list --path /`. If omitted, the `default` profile is used. See [`auth.md`](auth.md).
 
 ## List items
 

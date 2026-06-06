@@ -8,6 +8,8 @@ This guide documents the push architecture for mail notifications using Microsof
 
 Webhook setup remains default-profile compatible. If the webhook mailbox should use a named profile, authenticate that profile first and make sure subscription/worker commands run with the same `GRAPH_PROFILE=<name>` environment. Keep this as an explicit setup decision; daily agent commands should continue to select profiles per command.
 
+Do not run simultaneous push pipelines for multiple profiles against the same queue/dedupe/subscription state. For multiple push profiles, separate the worker services and state files (`--queue-file`, `--dedupe-file`, subscription IDs, and env) per profile; this is an advanced/future pattern, not the default setup path.
+
 ## 1) Components
 
 - `mail_webhook_adapter.py`: HTTP endpoint for Graph webhook delivery (handshake + enqueue).

@@ -2,7 +2,7 @@
 
 ## Profiles / contexts
 
-Use **profiles** to keep Microsoft Graph accounts separate. A profile owns its own tenant, client ID, scopes, and token cache.
+Use **profiles** to keep Microsoft Graph accounts separate. A profile is a complete Graph context: it owns its tenant, client ID, default scopes, and token/cache path rule.
 
 Recommended names:
 
@@ -10,18 +10,49 @@ Recommended names:
 - `work` — primary work/school Microsoft Entra account
 - `work-empresa1`, `work-empresa2`, etc. — additional work contexts when needed
 
-Token files:
+Built-in profile defaults:
 
-- No profile / `default`: `state/graph_auth.json` (backward-compatible with the original single-login flow)
-- Named profile: `state/graph_auth.<profile>.json` (for example `state/graph_auth.personal.json`)
+- `default`: tenant from `GRAPH_TENANT_ID` or `consumers`, client from `GRAPH_CLIENT_ID` or the public Alitar app, token cache `state/graph_auth.json`. This preserves the original single-login flow.
+- `personal`: tenant `consumers`, public Alitar app, default skill scopes, token cache `state/graph_auth.personal.json`.
+- `work`: tenant `organizations`, public Alitar app, default skill scopes, token cache `state/graph_auth.work.json`.
+- Other profile names get the default tenant/client/scopes and token cache `state/graph_auth.<profile>.json` unless configured.
 
 Profile names may contain letters, numbers, dot, underscore, and hyphen.
+
+
+## Optional profile config file
+
+For custom tenants/apps, create a small JSON file at `state/graph_profiles.json` (or point `GRAPH_PROFILES_FILE` to another JSON file). This file is not required for the built-in `default`, `personal`, or `work` paths.
+
+Example:
+
+```json
+{
+  "profiles": {
+    "empresa-x": {
+      "client_id": "00000000-0000-0000-0000-000000000000",
+      "tenant_id": "11111111-1111-1111-1111-111111111111",
+      "scopes": [
+        "Mail.ReadWrite",
+        "Mail.Send",
+        "Calendars.ReadWrite",
+        "Files.ReadWrite.All",
+        "Contacts.ReadWrite",
+        "offline_access"
+      ],
+      "auth_file": "state/graph_auth.empresa-x.json"
+    }
+  }
+}
+```
+
+`device-login --profile empresa-x` reads this config automatically, so the agent does not need to repeat `--client-id`, `--tenant-id`, or scopes each time. CLI `--client-id` and `--tenant-id` remain available as one-off overrides for login compatibility.
 
 ## Choosing a profile
 
 Two equivalent patterns are supported:
 
-1. **Per-command environment variable** (works with every script and is easiest in OpenClaw-style automation):
+1. **Recommended for agents/OpenClaw: per-command environment variable** (works the same way with every script and avoids remembering where `--profile` must be placed):
    ```bash
    GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 10
    GRAPH_PROFILE=personal python3 scripts/drive_ops.py list --path /
@@ -54,10 +85,7 @@ You do not need to create an App Registration to get started. The skill uses **O
 ### Personal Microsoft account (`@outlook.com`, `@hotmail.com`, Microsoft 365 Family)
 
 ```bash
-python3 scripts/graph_auth.py device-login \
-  --profile personal \
-  --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 \
-  --tenant-id consumers
+python3 scripts/graph_auth.py device-login --profile personal
 ```
 
 - **Use when**: you authenticate with Microsoft personal accounts (MSA), without corporate Entra ID.
@@ -66,15 +94,12 @@ python3 scripts/graph_auth.py device-login \
 ### Work/school account (Microsoft Entra ID / Azure AD)
 
 ```bash
-python3 scripts/graph_auth.py device-login \
-  --profile work \
-  --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 \
-  --tenant-id organizations
+python3 scripts/graph_auth.py device-login --profile work
 ```
 
 - **Use when**: you authenticate with a corporate or school account.
 - **Token file**: `state/graph_auth.work.json`
-- **Optional:** if your organization already has an approved App Registration, use `--client-id <your-app-id>` and `--tenant-id <tenant-id>`. See [Create Your Own App Registration](../docs/app-registration.md) for portal steps.
+- **Optional:** if your organization already has an approved App Registration, put it in `state/graph_profiles.json` or use one-off `--client-id <your-app-id>` and `--tenant-id <tenant-id>` on `device-login`. See [Create Your Own App Registration](../docs/app-registration.md) for portal steps.
 
 Suggested scopes for your own app:
 
@@ -87,7 +112,7 @@ Suggested scopes for your own app:
 
 ## Assisted device-code flow
 
-1. Run device login for the target profile (examples above).
+1. Run device login for the target profile (examples above). The script resolves client ID, tenant, scopes, and token path from built-ins plus `state/graph_profiles.json` when present.
 2. The script prints **URL** and **code**.
 3. Open `https://microsoft.com/devicelogin`, paste the code, and authorize with the account that belongs to that profile.
 4. On success, the script saves the profile-specific token state.
@@ -95,7 +120,7 @@ Suggested scopes for your own app:
    ```bash
    python3 scripts/graph_auth.py refresh --profile work
    ```
-6. Scopes are fixed by the skill defaults; scope override via CLI is intentionally disabled.
+6. Scopes come from the selected profile config. Scope override via CLI is intentionally disabled to keep daily use predictable.
 
 ## Status, refresh, and clear
 
@@ -125,7 +150,7 @@ Named profile example (`state/graph_auth.work.json`):
 }
 ```
 
-Never commit `state/graph_auth.json`, `state/graph_auth.<profile>.json`, or token-bearing logs.
+Never commit `state/graph_auth.json`, `state/graph_auth.<profile>.json`, `state/graph_profiles.json` if it contains tenant-private details, or token-bearing logs.
 
 ## Common errors
 

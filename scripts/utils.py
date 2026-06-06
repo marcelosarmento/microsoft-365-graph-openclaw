@@ -15,6 +15,8 @@ STATE_DIR = WORKSPACE_ROOT / "state"
 STATE_DIR.mkdir(exist_ok=True)
 AUTH_FILE = STATE_DIR / "graph_auth.json"
 LOG_FILE = STATE_DIR / "graph_ops.log"
+_profile_config_file_raw = Path(os.getenv("GRAPH_PROFILES_FILE", str(STATE_DIR / "graph_profiles.json"))).expanduser()
+PROFILE_CONFIG_FILE = _profile_config_file_raw if _profile_config_file_raw.is_absolute() else WORKSPACE_ROOT / _profile_config_file_raw
 DEFAULT_PROFILE = os.getenv("GRAPH_PROFILE", "default")
 PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 # Default app/tenant tuned for Microsoft personal accounts.
@@ -43,11 +45,72 @@ def normalize_profile(profile: Optional[str] = None) -> str:
     return name
 
 
-def auth_file_for_profile(profile: Optional[str] = None) -> Path:
+def _default_auth_file_for_profile(profile: Optional[str] = None) -> Path:
     name = normalize_profile(profile)
     if name == "default":
         return AUTH_FILE
     return STATE_DIR / f"graph_auth.{name}.json"
+
+
+def _resolve_profile_path(value: Optional[str], fallback: Path) -> Path:
+    if not value:
+        return fallback
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = WORKSPACE_ROOT / path
+    return path
+
+
+def _builtin_profile_config(profile: str) -> Dict[str, Any]:
+    tenant = "organizations" if profile == "work" else DEFAULT_TENANT
+    if profile == "personal":
+        tenant = "consumers"
+    return {
+        "profile": profile,
+        "client_id": DEFAULT_CLIENT_ID,
+        "tenant_id": tenant,
+        "scopes": list(DEFAULT_SCOPES),
+        "auth_file": str(_default_auth_file_for_profile(profile)),
+    }
+
+
+def load_profiles_config() -> Dict[str, Any]:
+    if not PROFILE_CONFIG_FILE.exists():
+        return {"profiles": {}}
+    with PROFILE_CONFIG_FILE.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Profile config must be a JSON object: {PROFILE_CONFIG_FILE}")
+    profiles = data.setdefault("profiles", {})
+    if not isinstance(profiles, dict):
+        raise ValueError(f"Profile config 'profiles' must be an object: {PROFILE_CONFIG_FILE}")
+    return data
+
+
+def get_profile_config(profile: Optional[str] = None) -> Dict[str, Any]:
+    name = normalize_profile(profile) if profile is not None else get_active_profile()
+    config = _builtin_profile_config(name)
+    profiles = load_profiles_config().get("profiles", {})
+    raw = profiles.get(name, {})
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"Profile config for {name!r} must be an object.")
+    config.update({k: v for k, v in raw.items() if v is not None})
+    config["profile"] = name
+    config["client_id"] = config.get("client_id") or DEFAULT_CLIENT_ID
+    config["tenant_id"] = config.get("tenant_id") or DEFAULT_TENANT
+    scopes = config.get("scopes") or DEFAULT_SCOPES
+    if isinstance(scopes, str):
+        scopes = scopes.split()
+    config["scopes"] = list(scopes)
+    auth_value = config.get("auth_file") or config.get("token_path")
+    config["auth_file"] = str(_resolve_profile_path(auth_value, _default_auth_file_for_profile(name)))
+    return config
+
+
+def auth_file_for_profile(profile: Optional[str] = None) -> Path:
+    return Path(get_profile_config(profile).get("auth_file", _default_auth_file_for_profile(profile)))
 
 
 def set_active_profile(profile: Optional[str] = None) -> str:
@@ -92,6 +155,7 @@ def save_auth_state(data: Dict[str, Any], profile: Optional[str] = None) -> None
         name = get_active_profile()
     data["profile"] = name
     auth_file = auth_file_for_profile(name)
+    auth_file.parent.mkdir(parents=True, exist_ok=True)
     with auth_file.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
@@ -136,9 +200,10 @@ def refresh_access_token(force: bool = False, profile: Optional[str] = None) -> 
     refresh_token = token.get("refresh_token")
     if not refresh_token:
         raise RuntimeError(f"Refresh token missing for profile '{name}'. Re-run device login.")
-    client_id = state.get("client_id", DEFAULT_CLIENT_ID)
-    tenant_id = state.get("tenant_id", DEFAULT_TENANT)
-    scope_str = " ".join(state.get("scopes", DEFAULT_SCOPES))
+    config = get_profile_config(name)
+    client_id = state.get("client_id", config["client_id"])
+    tenant_id = state.get("tenant_id", config["tenant_id"])
+    scope_str = " ".join(state.get("scopes", config["scopes"]))
     new_token = _request_token(
         {
             "client_id": client_id,

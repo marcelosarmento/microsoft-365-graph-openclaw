@@ -11,13 +11,12 @@ import requests
 
 sys.path.append(str(Path(__file__).resolve().parent))
 from utils import (  # noqa: E402
-    DEFAULT_CLIENT_ID,
-    DEFAULT_SCOPES,
-    DEFAULT_TENANT,
+    PROFILE_CONFIG_FILE,
     add_profile_argument,
     append_log,
     auth_file_for_profile,
     configure_profile_from_args,
+    get_profile_config,
     load_auth_state,
     save_auth_state,
     token_expired,
@@ -99,9 +98,10 @@ def poll_for_token(device_data: dict, client_id: str, tenant_id: str) -> dict:
 
 def command_device_login(args: argparse.Namespace) -> None:
     profile = configure_profile_from_args(args)
-    scopes = list(DEFAULT_SCOPES)
-    client_id = args.client_id or DEFAULT_CLIENT_ID
-    tenant_id = args.tenant_id or DEFAULT_TENANT
+    config = get_profile_config(profile)
+    scopes = list(config["scopes"])
+    client_id = args.client_id or config["client_id"]
+    tenant_id = args.tenant_id or config["tenant_id"]
     validate_scope_tenant_compatibility(scopes, tenant_id)
     warn_if_missing_core_scopes(scopes, "device-login")
     device = request_device_code(client_id, scopes, tenant_id)
@@ -116,6 +116,7 @@ def command_device_login(args: argparse.Namespace) -> None:
         "tenant_id": tenant_id,
         "scopes": scopes,
         "token": token,
+        "auth_file": str(auth_file_for_profile(profile)),
     }
     save_auth_state(state, profile)
     append_log({"action": "auth_login", "tenant": tenant_id, "scopes": scopes})
@@ -127,14 +128,15 @@ def command_refresh(args: argparse.Namespace) -> None:
     state = load_auth_state(profile)
     if not state.get("token"):
         raise RuntimeError("No token found. Run device-login first.")
+    config = get_profile_config(profile)
     token = _request_token(
         {
-            "client_id": state.get("client_id", DEFAULT_CLIENT_ID),
+            "client_id": state.get("client_id", config["client_id"]),
             "grant_type": "refresh_token",
             "refresh_token": state["token"].get("refresh_token"),
-            "scope": " ".join(state.get("scopes", DEFAULT_SCOPES)),
+            "scope": " ".join(state.get("scopes", config["scopes"])),
         },
-        state.get("tenant_id", DEFAULT_TENANT),
+        state.get("tenant_id", config["tenant_id"]),
     )
     state["token"] = token
     save_auth_state(state, profile)
@@ -145,8 +147,12 @@ def command_refresh(args: argparse.Namespace) -> None:
 def command_status(args: argparse.Namespace) -> None:
     profile = configure_profile_from_args(args)
     state = load_auth_state(profile)
+    config = get_profile_config(profile)
     if not state:
         print(f"No saved auth state for profile {profile!r} at {auth_file_for_profile(profile)}.")
+        print("Profile config:")
+        print(json.dumps({k: config[k] for k in ["profile", "client_id", "tenant_id", "scopes", "auth_file"]}, indent=2))
+        print(f"Config source: {PROFILE_CONFIG_FILE} (if present) plus built-in defaults.")
         return
     token = state.get("token")
     scopes = state.get("scopes", [])
@@ -185,8 +191,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_login = sub.add_parser("device-login", help="Start device-code sign-in flow.")
-    p_login.add_argument("--client-id", help="Client ID to use", default=DEFAULT_CLIENT_ID)
-    p_login.add_argument("--tenant-id", help="Tenant (consumers, organizations, common, or GUID)", default=DEFAULT_TENANT)
+    p_login.add_argument("--client-id", help="Override profile Client ID for this login.")
+    p_login.add_argument("--tenant-id", help="Override profile tenant (consumers, organizations, common, or GUID) for this login.")
     add_profile_argument(p_login)
 
     p_refresh = sub.add_parser("refresh", help="Force immediate token refresh.")
