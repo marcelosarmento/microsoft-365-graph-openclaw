@@ -61,8 +61,8 @@ See full architecture and flow in `docs/architecture.md`.
 The skill supports separate Graph profiles for multiple accounts or tenants. A profile is a full Graph context: client ID, tenant ID, default scopes, and token/cache path. Use `personal` for a Microsoft personal account, `work` for a primary organization account, and names like `work-empresa1` for additional tenants.
 
 - No profile / `default` keeps the original single-login token at `state/graph_auth.json`.
-- Built-in `personal` and `work` profiles work without a config file and use separate token caches such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
-- Custom profiles can be declared in `state/graph_profiles.json` or another JSON file via `GRAPH_PROFILES_FILE`.
+- Built-in `personal` and `work` profiles are generic defaults that work without a config file and use separate token caches such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
+- To use your own client ID, tenant, or scopes for `personal`, `work`, or another profile, declare it in `state/graph_profiles.json` or another JSON file via `GRAPH_PROFILES_FILE`.
 - Recommended for agents/OpenClaw: prefix any command with `GRAPH_PROFILE=<name>` because it works uniformly for every script and avoids `--profile` position rules.
 
 Examples:

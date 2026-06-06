@@ -48,8 +48,8 @@ Permission profiles are in [`docs/permission-profiles.md`](docs/permission-profi
 Use **profiles** when the same agent needs more than one Microsoft Graph account. A profile is a complete Graph context: client ID, tenant ID, default scopes, and token/cache path. Recommended names are `personal`, `work`, and specific names like `work-empresa1` for additional tenants.
 
 - If no profile is provided, scripts use `default` and the existing `state/graph_auth.json` token cache. This preserves the original single-login workflow.
-- Built-ins: `personal` uses tenant `consumers`; `work` uses tenant `organizations`; both use default skill scopes and separate token files.
-- Optional custom profile config lives in `state/graph_profiles.json` (or `GRAPH_PROFILES_FILE`) and can set `client_id`, `tenant_id`, `scopes`, and `auth_file`.
+- Built-ins: `personal` and `work` are generic defaults. `personal` uses tenant `consumers`; `work` uses tenant `organizations`; both use default skill scopes and separate token files.
+- To use your own `client_id`, tenant, or scopes for `personal`, `work`, or another profile, create `state/graph_profiles.json` (or set `GRAPH_PROFILES_FILE`) with `client_id`, `tenant_id`, `scopes`, and `auth_file`.
 - For agents/OpenClaw, prefer per-command environment selection: `GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 20`. It works the same way for every script and avoids confusion about `--profile` position.
 - CLI selection is also supported. Auth commands use `--profile` after the auth subcommand; scripts with subcommands use `--profile` before the subcommand.
 

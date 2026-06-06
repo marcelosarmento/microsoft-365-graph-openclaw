@@ -25,7 +25,7 @@ export REPO_ROOT="$(pwd)"
 
 ### 2. Authenticate
 
-Profile note: omitting `--profile` uses the backward-compatible `default` profile (`state/graph_auth.json`). For multi-account setups, add `--profile personal` or `--profile work` and run later Graph commands with the same profile, preferably by prefixing `GRAPH_PROFILE=<name>`. Built-in `personal` and `work` profiles already know their tenant/client/scopes; custom profiles can live in `state/graph_profiles.json`.
+Profile note: omitting `--profile` uses the backward-compatible `default` profile (`state/graph_auth.json`). For multi-account setups, add `--profile personal` or `--profile work` and run later Graph commands with the same profile, preferably by prefixing `GRAPH_PROFILE=<name>`. Built-in `personal` and `work` profiles are generic defaults that already know their tenant/client/scopes; use `state/graph_profiles.json` or `GRAPH_PROFILES_FILE` for your own client ID, tenant, or scopes.
 
 
 Personal account (Outlook/Hotmail):

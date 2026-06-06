@@ -13,8 +13,8 @@ Recommended names:
 Built-in profile defaults:
 
 - `default`: tenant from `GRAPH_TENANT_ID` or `consumers`, client from `GRAPH_CLIENT_ID` or the public Alitar app, token cache `state/graph_auth.json`. This preserves the original single-login flow.
-- `personal`: tenant `consumers`, public Alitar app, default skill scopes, token cache `state/graph_auth.personal.json`.
-- `work`: tenant `organizations`, public Alitar app, default skill scopes, token cache `state/graph_auth.work.json`.
+- `personal`: generic default for personal Microsoft accounts; tenant `consumers`, public Alitar app, default skill scopes, token cache `state/graph_auth.personal.json`.
+- `work`: generic default for work/school accounts; tenant `organizations`, public Alitar app, default skill scopes, token cache `state/graph_auth.work.json`.
 - Other profile names get the default tenant/client/scopes and token cache `state/graph_auth.<profile>.json` unless configured.
 
 Profile names may contain letters, numbers, dot, underscore, and hyphen.
@@ -22,16 +22,16 @@ Profile names may contain letters, numbers, dot, underscore, and hyphen.
 
 ## Optional profile config file
 
-For custom tenants/apps, create a small JSON file at `state/graph_profiles.json` (or point `GRAPH_PROFILES_FILE` to another JSON file). This file is not required for the built-in `default`, `personal`, or `work` paths.
+For your own client IDs, tenants, or scope sets, create a small JSON file at `state/graph_profiles.json` (or point `GRAPH_PROFILES_FILE` to another JSON file). This is the recommended path when `personal` or `work` should use your own app/tenant/scopes instead of the generic built-in defaults. The file is not required for quick use of the built-in `default`, `personal`, or `work` paths.
 
-Example:
+Example `state/graph_profiles.json` with custom `personal` and `work` contexts (placeholder IDs only):
 
 ```json
 {
   "profiles": {
-    "empresa-x": {
+    "personal": {
       "client_id": "00000000-0000-0000-0000-000000000000",
-      "tenant_id": "11111111-1111-1111-1111-111111111111",
+      "tenant_id": "consumers",
       "scopes": [
         "Mail.ReadWrite",
         "Mail.Send",
@@ -40,13 +40,26 @@ Example:
         "Contacts.ReadWrite",
         "offline_access"
       ],
-      "auth_file": "state/graph_auth.empresa-x.json"
+      "auth_file": "state/graph_auth.personal.json"
+    },
+    "work": {
+      "client_id": "11111111-1111-1111-1111-111111111111",
+      "tenant_id": "organizations",
+      "scopes": [
+        "Mail.ReadWrite",
+        "Mail.Send",
+        "Calendars.ReadWrite",
+        "Files.ReadWrite.All",
+        "Contacts.ReadWrite",
+        "offline_access"
+      ],
+      "auth_file": "state/graph_auth.work.json"
     }
   }
 }
 ```
 
-`device-login --profile empresa-x` reads this config automatically, so the agent does not need to repeat `--client-id`, `--tenant-id`, or scopes each time. CLI `--client-id` and `--tenant-id` remain available as one-off overrides for login compatibility.
+For a named company profile, add another object such as `"empresa-x"` with its own `client_id`, `tenant_id`, scopes, and `auth_file`. `device-login --profile <name>` reads this config automatically, so the agent does not need to repeat `--client-id`, `--tenant-id`, or scopes each time. CLI `--client-id` and `--tenant-id` remain available as one-off overrides for login compatibility.
 
 ## Choosing a profile
 
