@@ -34,55 +34,8 @@ curl -H "Authorization: Bearer <ACCESS_TOKEN>" \
 ```
 Or query a known folder with `mail_fetch.py --folder SentItems`.
 
-## Push mode (no inbox polling)
+## Push-mode boundary
 
-### Start webhook adapter
+Daily mail work should use the list/fetch/send commands above. Do **not** start webhook servers, create subscriptions, or run privileged setup scripts unless the user explicitly asks for push-mode setup or webhook operations.
 
-```
-python scripts/mail_webhook_adapter.py serve \
-  --host 0.0.0.0 \
-  --port 8789 \
-  --path /graph/mail \
-  --client-state "$GRAPH_WEBHOOK_CLIENT_STATE"
-```
-
-### Create Graph subscription
-
-```
-python scripts/mail_subscriptions.py create \
-  --notification-url "https://graph-hook.example.com/graph/mail" \
-  --client-state "$GRAPH_WEBHOOK_CLIENT_STATE" \
-  --minutes 4200
-```
-
-- Default resource is `me/messages` (broader and more resilient to routing/folder variations).
-- You can still scope manually with `--resource`, but `me/mailFolders('Inbox')/messages` may miss some real deliveries depending on mailbox behavior.
-
-### Process notifications asynchronously
-
-```
-python scripts/mail_webhook_worker.py loop \
-  --session-key "$OPENCLAW_SESSION_KEY" \
-  --hook-url "$OPENCLAW_HOOK_URL" \
-  --hook-token "$OPENCLAW_HOOK_TOKEN"
-```
-
-- Adapter responds to Graph validation (`validationToken`) and enqueues compact events.
-- Worker performs dedupe by `subscriptionId/messageId/changeType`.
-- Worker default mode posts a `wake` signal to OpenClaw `/hooks/wake` (`mode=now`) so the inbox is processed in the next heartbeat cycle.
-- Optional advanced mode: `--hook-action agent` to fetch full mail via Graph and post a rich payload to `/hooks/agent`.
-- In production, values are typically loaded from `/etc/default/graph-mail-webhook` created by setup scripts; `OPENCLAW_SESSION_KEY` is optional (default `hook:graph-mail`).
-- Renew subscriptions before expiration:
-
-```
-python scripts/mail_subscriptions.py renew --id "<subscription-id>" --minutes 4200
-```
-
-### Quick validation checklist (post-subscription)
-
-- Confirm adapter receives real deliveries: `journalctl -u graph-mail-webhook-adapter --since "15 minutes ago" | rg 'POST /graph/mail HTTP/1.1" 202'`
-- Confirm queue receives events: `wc -l state/mail_webhook_queue.jsonl`
-- Confirm worker processes items: `tail -n 80 state/graph_ops.log | rg 'mail_webhook_processed|mail_webhook_drop_max_retries'`
-
-See full setup, checklists, and troubleshooting in:
-`references/mail_webhook_adapter.md`.
+For already-configured push-mode status and subscription commands, see [`references/mail_webhook_adapter.md`](mail_webhook_adapter.md). For setup, EC2/Caddy/systemd, smoke tests, and privileged runbooks, see [`../ops/mail-webhook.md`](../ops/mail-webhook.md).

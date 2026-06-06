@@ -44,9 +44,10 @@ Skill:
 Capabilities:
 - OAuth device-code auth with refresh handling
 - Mail, calendar, drive, and contacts automation
-- Graph webhook adapter + worker queue + dedupe
-- OpenClaw wake integration via `/hooks/wake`
-- EC2-oriented setup, smoke testing, and end-to-end diagnostics
+- Daily agent references for auth, mail, calendar, drive, and contacts
+- Optional Graph webhook adapter + worker queue + dedupe
+- Optional OpenClaw wake integration via `/hooks/wake`
+- Setup/ops runbooks kept separate from daily agent usage
 
 ## Architecture at a glance
 
@@ -156,12 +157,17 @@ If setup checks fail, see `docs/troubleshooting.md` and `docs/faq.md`.
 - Push-mode runtime uses service-level values from `/etc/default/graph-mail-webhook` (written by setup scripts): `OPENCLAW_HOOK_URL` (required), `OPENCLAW_HOOK_TOKEN` (required), `GRAPH_WEBHOOK_CLIENT_STATE` (required), and `OPENCLAW_SESSION_KEY` (optional; default `hook:graph-mail`).
 - The project is self-hosted and production-oriented, with explicit setup and diagnostics.
 - See `SECURITY.md` for threat model and credential revocation guidance.
-- API command references by workload:
+- Agent-facing command references by workload:
+  - Auth: `references/auth.md`
   - Mail: `references/mail.md`
   - Calendar: `references/calendar.md`
   - Drive: `references/drive.md`
   - Contacts: `references/contacts.md`
-  - Webhook adapter: `references/mail_webhook_adapter.md`
+  - Already-configured push operations: `references/mail_webhook_adapter.md`
+- Setup/infra runbooks:
+  - Mail webhook setup and operations: `ops/mail-webhook.md`
+  - Minimal human setup: `docs/minimal-setup.md`
+  - OpenClaw hook configuration: `docs/setup-openclaw-hooks.md`
 
 ## Privileged operations boundary
 
