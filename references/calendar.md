@@ -1,5 +1,9 @@
 # Calendar Reference
 
+## Profile selection
+
+Calendar commands operate on the selected Graph profile. Recommended for agents/OpenClaw: use `GRAPH_PROFILE=work python scripts/calendar_sync.py list ...` or `python scripts/calendar_sync.py --profile work list ...`. If omitted, the `default` profile is used. See [`auth.md`](auth.md).
+
 ## List events
 
 ```

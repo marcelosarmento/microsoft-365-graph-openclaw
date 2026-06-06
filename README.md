@@ -42,17 +42,39 @@ Skill:
 - `microsoft-365-graph-openclaw`
 
 Capabilities:
-- OAuth device-code auth with refresh handling
+- OAuth device-code auth with refresh handling and separate profiles/token caches
 - Mail, calendar, drive, and contacts automation
-- Graph webhook adapter + worker queue + dedupe
-- OpenClaw wake integration via `/hooks/wake`
-- EC2-oriented setup, smoke testing, and end-to-end diagnostics
+- Daily agent references for auth, mail, calendar, drive, and contacts
+- Optional Graph webhook adapter + worker queue + dedupe
+- Optional OpenClaw wake integration via `/hooks/wake`
+- Setup/ops runbooks kept separate from daily agent usage
 
 ## Architecture at a glance
 
 `Microsoft Graph -> webhook endpoint -> queue -> dedupe worker -> /hooks/wake -> OpenClaw`
 
 See full architecture and flow in `docs/architecture.md`.
+
+
+## Multiple Microsoft Graph profiles
+
+The skill supports separate Graph profiles for multiple accounts or tenants. A profile is a full Graph context: client ID, tenant ID, default scopes, and token/cache path. Use `personal` for a Microsoft personal account, `work` for a primary organization account, and names like `work-empresa1` for additional tenants.
+
+- No profile / `default` keeps the original single-login token at `state/graph_auth.json`.
+- Built-in `personal` and `work` profiles are generic defaults that work without a config file and use separate token caches such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
+- To use your own client ID, tenant, or scopes for `personal`, `work`, or another profile, declare it in `state/graph_profiles.json` or another JSON file via `GRAPH_PROFILES_FILE`.
+- Recommended for agents/OpenClaw: prefix any command with `GRAPH_PROFILE=<name>` because it works uniformly for every script and avoids `--profile` position rules.
+
+Examples:
+
+```bash
+python3 scripts/graph_auth.py device-login --profile personal
+python3 scripts/graph_auth.py device-login --profile work
+GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 10
+GRAPH_PROFILE=personal python3 scripts/drive_ops.py list --path /
+```
+
+See `references/auth.md` for profile naming, token paths, and CLI syntax.
 
 ## Public HTTPS webhook URL prerequisite
 
@@ -156,12 +178,17 @@ If setup checks fail, see `docs/troubleshooting.md` and `docs/faq.md`.
 - Push-mode runtime uses service-level values from `/etc/default/graph-mail-webhook` (written by setup scripts): `OPENCLAW_HOOK_URL` (required), `OPENCLAW_HOOK_TOKEN` (required), `GRAPH_WEBHOOK_CLIENT_STATE` (required), and `OPENCLAW_SESSION_KEY` (optional; default `hook:graph-mail`).
 - The project is self-hosted and production-oriented, with explicit setup and diagnostics.
 - See `SECURITY.md` for threat model and credential revocation guidance.
-- API command references by workload:
+- Agent-facing command references by workload:
+  - Auth and profiles: `references/auth.md`
   - Mail: `references/mail.md`
   - Calendar: `references/calendar.md`
   - Drive: `references/drive.md`
   - Contacts: `references/contacts.md`
-  - Webhook adapter: `references/mail_webhook_adapter.md`
+  - Already-configured push operations: `references/mail_webhook_adapter.md`
+- Setup/infra runbooks:
+  - Mail webhook setup and operations: `ops/mail-webhook.md`
+  - Minimal human setup: `docs/minimal-setup.md`
+  - OpenClaw hook configuration: `docs/setup-openclaw-hooks.md`
 
 ## Privileged operations boundary
 

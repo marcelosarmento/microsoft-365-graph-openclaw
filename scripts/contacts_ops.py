@@ -3,11 +3,12 @@
 import argparse
 import json
 
-from utils import append_log, authorized_request, graph_url, cli_main
+from utils import add_profile_argument, append_log, authorized_request, configure_profile_from_args, graph_url, cli_main
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage contacts via Microsoft Graph.")
+    add_profile_argument(parser)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_list = sub.add_parser("list", help="List contacts.")
@@ -108,6 +109,7 @@ def handle_delete(args: argparse.Namespace) -> None:
 def handler() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    configure_profile_from_args(args)
     if args.command == "list":
         handle_list(args)
     elif args.command == "get":

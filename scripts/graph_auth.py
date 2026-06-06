@@ -11,11 +11,12 @@ import requests
 
 sys.path.append(str(Path(__file__).resolve().parent))
 from utils import (  # noqa: E402
-    DEFAULT_CLIENT_ID,
-    DEFAULT_SCOPES,
-    DEFAULT_TENANT,
-    AUTH_FILE,
+    PROFILE_CONFIG_FILE,
+    add_profile_argument,
     append_log,
+    auth_file_for_profile,
+    configure_profile_from_args,
+    get_profile_config,
     load_auth_state,
     save_auth_state,
     token_expired,
@@ -96,9 +97,11 @@ def poll_for_token(device_data: dict, client_id: str, tenant_id: str) -> dict:
 
 
 def command_device_login(args: argparse.Namespace) -> None:
-    scopes = list(DEFAULT_SCOPES)
-    client_id = args.client_id or DEFAULT_CLIENT_ID
-    tenant_id = args.tenant_id or DEFAULT_TENANT
+    profile = configure_profile_from_args(args)
+    config = get_profile_config(profile)
+    scopes = list(config["scopes"])
+    client_id = args.client_id or config["client_id"]
+    tenant_id = args.tenant_id or config["tenant_id"]
     validate_scope_tenant_compatibility(scopes, tenant_id)
     warn_if_missing_core_scopes(scopes, "device-login")
     device = request_device_code(client_id, scopes, tenant_id)
@@ -113,35 +116,43 @@ def command_device_login(args: argparse.Namespace) -> None:
         "tenant_id": tenant_id,
         "scopes": scopes,
         "token": token,
+        "auth_file": str(auth_file_for_profile(profile)),
     }
-    save_auth_state(state)
+    save_auth_state(state, profile)
     append_log({"action": "auth_login", "tenant": tenant_id, "scopes": scopes})
-    print("Authorization successful. Tokens saved to state/graph_auth.json")
+    print(f"Authorization successful for profile {profile!r}. Tokens saved to {auth_file_for_profile(profile)}")
 
 
-def command_refresh(_: argparse.Namespace) -> None:
-    state = load_auth_state()
+def command_refresh(args: argparse.Namespace) -> None:
+    profile = configure_profile_from_args(args)
+    state = load_auth_state(profile)
     if not state.get("token"):
         raise RuntimeError("No token found. Run device-login first.")
+    config = get_profile_config(profile)
     token = _request_token(
         {
-            "client_id": state.get("client_id", DEFAULT_CLIENT_ID),
+            "client_id": state.get("client_id", config["client_id"]),
             "grant_type": "refresh_token",
             "refresh_token": state["token"].get("refresh_token"),
-            "scope": " ".join(state.get("scopes", DEFAULT_SCOPES)),
+            "scope": " ".join(state.get("scopes", config["scopes"])),
         },
-        state.get("tenant_id", DEFAULT_TENANT),
+        state.get("tenant_id", config["tenant_id"]),
     )
     state["token"] = token
-    save_auth_state(state)
+    save_auth_state(state, profile)
     append_log({"action": "auth_refresh"})
-    print("Token refreshed.")
+    print(f"Token refreshed for profile {profile!r}.")
 
 
-def command_status(_: argparse.Namespace) -> None:
-    state = load_auth_state()
+def command_status(args: argparse.Namespace) -> None:
+    profile = configure_profile_from_args(args)
+    state = load_auth_state(profile)
+    config = get_profile_config(profile)
     if not state:
-        print("No saved auth state.")
+        print(f"No saved auth state for profile {profile!r} at {auth_file_for_profile(profile)}.")
+        print("Profile config:")
+        print(json.dumps({k: config[k] for k in ["profile", "client_id", "tenant_id", "scopes", "auth_file"]}, indent=2))
+        print(f"Config source: {PROFILE_CONFIG_FILE} (if present) plus built-in defaults.")
         return
     token = state.get("token")
     scopes = state.get("scopes", [])
@@ -154,11 +165,13 @@ def command_status(_: argparse.Namespace) -> None:
         print("Expired?", token_expired(token))
 
 
-def command_clear(_: argparse.Namespace) -> None:
-    if AUTH_FILE.exists():
-        AUTH_FILE.unlink()
+def command_clear(args: argparse.Namespace) -> None:
+    profile = configure_profile_from_args(args)
+    auth_file = auth_file_for_profile(profile)
+    if auth_file.exists():
+        auth_file.unlink()
     append_log({"action": "auth_clear"})
-    print("Authentication state removed.")
+    print(f"Authentication state removed for profile {profile!r}.")
 
 
 def json_summary(state: dict) -> str:
@@ -178,12 +191,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_login = sub.add_parser("device-login", help="Start device-code sign-in flow.")
-    p_login.add_argument("--client-id", help="Client ID to use", default=DEFAULT_CLIENT_ID)
-    p_login.add_argument("--tenant-id", help="Tenant (consumers, organizations, common, or GUID)", default=DEFAULT_TENANT)
+    p_login.add_argument("--client-id", help="Override profile Client ID for this login.")
+    p_login.add_argument("--tenant-id", help="Override profile tenant (consumers, organizations, common, or GUID) for this login.")
+    add_profile_argument(p_login)
 
-    sub.add_parser("refresh", help="Force immediate token refresh.")
-    sub.add_parser("status", help="Show current auth/token status.")
-    sub.add_parser("clear", help="Delete saved token state.")
+    p_refresh = sub.add_parser("refresh", help="Force immediate token refresh.")
+    add_profile_argument(p_refresh)
+    p_status = sub.add_parser("status", help="Show current auth/token status.")
+    add_profile_argument(p_status)
+    p_clear = sub.add_parser("clear", help="Delete saved token state.")
+    add_profile_argument(p_clear)
     return parser
 
 

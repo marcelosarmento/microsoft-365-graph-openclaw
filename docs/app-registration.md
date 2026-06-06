@@ -51,10 +51,13 @@ In the app **Overview** page, copy **Application (client) ID**. This is the valu
 - Personal account (MSA): ensure your app supports personal Microsoft accounts and use `--tenant-id consumers`
 - Work/school: use `--client-id <your-application-id>` and `--tenant-id organizations` (or your tenant GUID)
 
-Example:
+For repeated use, prefer adding the app details to `state/graph_profiles.json` so `device-login --profile <name>` can resolve the profile context without repeating flags.
+
+One-off example:
 
 ```bash
 python3 scripts/graph_auth.py device-login \
+  --profile work \
   --client-id "<TEU_APPLICATION_CLIENT_ID>" \
   --tenant-id organizations
 ```

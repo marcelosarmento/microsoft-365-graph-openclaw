@@ -4,7 +4,7 @@ import argparse
 import json
 from datetime import datetime, timedelta, timezone
 
-from utils import append_log, authorized_request, cli_main, graph_url
+from utils import add_profile_argument, append_log, authorized_request, cli_main, configure_profile_from_args, graph_url
 
 MAX_MAIL_SUBSCRIPTION_MINUTES = 4230
 DEFAULT_SUBSCRIPTION_MINUTES = 4200
@@ -25,6 +25,7 @@ def _clamp_expiration(minutes: int) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage Graph mail subscriptions.")
+    add_profile_argument(parser)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_create = sub.add_parser("create", help="Create a mail subscription.")
@@ -109,6 +110,7 @@ def handle_list(args: argparse.Namespace) -> None:
 def handler() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    configure_profile_from_args(args)
     if args.command == "create":
         handle_create(args)
     elif args.command == "status":

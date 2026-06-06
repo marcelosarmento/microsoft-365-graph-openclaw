@@ -19,7 +19,7 @@ Key controls:
 Treat the following as secrets:
 - `OPENCLAW_HOOK_TOKEN`
 - `GRAPH_WEBHOOK_CLIENT_STATE`
-- OAuth tokens in `state/graph_auth.json`
+- OAuth tokens in `state/graph_auth.json` and named profile files such as `state/graph_auth.work.json`
 - Any raw `Authorization: Bearer ...` values
 
 Not secrets:

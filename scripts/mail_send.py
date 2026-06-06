@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from utils import append_log, authorized_request, encode_attachment, graph_url, parse_recipients, cli_main
+from utils import add_profile_argument, append_log, authorized_request, configure_profile_from_args, encode_attachment, graph_url, parse_recipients, cli_main
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--importance", choices=["Low", "Normal", "High"], default="Normal")
     parser.add_argument("--no-save-copy", dest="save_copy", action="store_false", help="Do not save a copy in Sent Items.")
     parser.set_defaults(save_copy=True)
+    add_profile_argument(parser)
     return parser
 
 
@@ -33,6 +34,7 @@ def load_body(args: argparse.Namespace) -> str:
 def handler():
     parser = build_parser()
     args = parser.parse_args()
+    configure_profile_from_args(args)
     body_content = load_body(args)
     attachments = [encode_attachment(Path(path)) for path in args.attachment]
     message = {

@@ -3,7 +3,7 @@
 import argparse
 import json
 
-from utils import append_log, authorized_request, graph_url, cli_main
+from utils import add_profile_argument, append_log, authorized_request, configure_profile_from_args, graph_url, cli_main
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,12 +19,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--include-body", action="store_true", help="Include full message body in output.")
     parser.add_argument("--mark-read", action="store_true", help="Mark message passed with --id as read.")
     parser.add_argument("--move-to", help="Move message passed with --id to destination folder ID.")
+    add_profile_argument(parser)
     return parser
 
 
 def handler():
     parser = build_parser()
     args = parser.parse_args()
+    configure_profile_from_args(args)
     if args.id:
         result = fetch_single(args)
     else:
