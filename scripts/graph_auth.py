@@ -24,7 +24,7 @@ from utils import (  # noqa: E402
     _request_token,
 )
 
-CORE_SKILL_SCOPES = {
+FULL_SKILL_SCOPES = {
     "Mail.ReadWrite",
     "Mail.Send",
     "Calendars.ReadWrite",
@@ -35,16 +35,16 @@ CORE_SKILL_SCOPES = {
 
 
 def warn_if_missing_core_scopes(scopes: List[str], context: str) -> None:
-    missing = sorted(CORE_SKILL_SCOPES.difference(set(scopes)))
+    missing = sorted(FULL_SKILL_SCOPES.difference(set(scopes)))
     if not missing:
         return
     joined = ", ".join(missing)
     print(
-        f"[warning] Missing scopes for full skill usage ({context}): {joined}.",
+        f"[warning] Missing scopes for full mail/calendar/contact usage ({context}): {joined}.",
         file=sys.stderr,
     )
     print(
-        "[warning] Re-authenticate with the default email + calendar scopes.",
+        "[warning] Re-authenticate with expanded scopes only when those modules are enabled.",
         file=sys.stderr,
     )
 
@@ -96,11 +96,10 @@ def poll_for_token(device_data: dict, client_id: str, tenant_id: str) -> dict:
 
 
 def command_device_login(args: argparse.Namespace) -> None:
-    scopes = list(DEFAULT_SCOPES)
+    scopes = normalize_scopes(args.scope) if args.scope else list(DEFAULT_SCOPES)
     client_id = args.client_id or DEFAULT_CLIENT_ID
     tenant_id = args.tenant_id or DEFAULT_TENANT
     validate_scope_tenant_compatibility(scopes, tenant_id)
-    warn_if_missing_core_scopes(scopes, "device-login")
     device = request_device_code(client_id, scopes, tenant_id)
     verification_uri = device.get("verification_uri") or device.get("verification_uri_complete")
     print("=== Authorize access ===")
@@ -116,7 +115,14 @@ def command_device_login(args: argparse.Namespace) -> None:
     }
     save_auth_state(state)
     append_log({"action": "auth_login", "tenant": tenant_id, "scopes": scopes})
-    print("Authorization successful. Tokens saved to state/graph_auth.json")
+    print(f"Authorization successful. Tokens saved to {AUTH_FILE}")
+
+
+def normalize_scopes(values: List[str]) -> List[str]:
+    scopes: List[str] = []
+    for value in values:
+        scopes.extend(part for part in value.split() if part)
+    return scopes
 
 
 def command_refresh(_: argparse.Namespace) -> None:
@@ -145,7 +151,6 @@ def command_status(_: argparse.Namespace) -> None:
         return
     token = state.get("token")
     scopes = state.get("scopes", [])
-    warn_if_missing_core_scopes(scopes, "saved state")
     expires = token.get("expires_at") if token else None
     seconds = int(expires - time.time()) if expires else None
     print(json_summary(state))
@@ -180,6 +185,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_login = sub.add_parser("device-login", help="Start device-code sign-in flow.")
     p_login.add_argument("--client-id", help="Client ID to use", default=DEFAULT_CLIENT_ID)
     p_login.add_argument("--tenant-id", help="Tenant (consumers, organizations, common, or GUID)", default=DEFAULT_TENANT)
+    p_login.add_argument(
+        "--scope",
+        action="append",
+        help="OAuth scope to request. Repeat for multiple scopes. Defaults to minimal personal OneDrive scopes.",
+    )
 
     sub.add_parser("refresh", help="Force immediate token refresh.")
     sub.add_parser("status", help="Show current auth/token status.")

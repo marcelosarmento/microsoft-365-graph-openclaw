@@ -9,21 +9,30 @@ from typing import Any, Dict, Iterable, Optional
 
 import requests
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
-STATE_DIR = WORKSPACE_ROOT / "state"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+STATE_DIR = REPO_ROOT / "state"
 STATE_DIR.mkdir(exist_ok=True)
-AUTH_FILE = STATE_DIR / "graph_auth.json"
-LOG_FILE = STATE_DIR / "graph_ops.log"
-# Default app/tenant tuned for Microsoft personal accounts.
+
+GRAPH_PROFILE = os.getenv("GRAPH_PROFILE", "personal")
+GRAPH_HOME = Path(os.getenv("GRAPH_HOME", "~/.openclaw/graph")).expanduser()
+GRAPH_HOME.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+AUTH_FILE = Path(
+    os.getenv("GRAPH_AUTH_FILE", str(GRAPH_HOME / f"{GRAPH_PROFILE}-token.json"))
+).expanduser()
+AUTH_FILE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+LOG_FILE = Path(
+    os.getenv("GRAPH_LOG_FILE", str(GRAPH_HOME / f"{GRAPH_PROFILE}-ops.log"))
+).expanduser()
+LOG_FILE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+# Default app/tenant tuned for Tuco's personal Microsoft account tests.
 # Override with GRAPH_CLIENT_ID / GRAPH_TENANT_ID or CLI args when needed.
-DEFAULT_CLIENT_ID = os.getenv("GRAPH_CLIENT_ID", "952d1b34-682e-48ce-9c54-bac5a96cbd42")
+DEFAULT_CLIENT_ID = os.getenv("GRAPH_CLIENT_ID", "e8ee2c58-635e-491f-99f7-c60b63b70f64")
 DEFAULT_TENANT = os.getenv("GRAPH_TENANT_ID", "consumers")
 DEFAULT_SCOPES = [
-    "Mail.ReadWrite",
-    "Mail.Send",
-    "Calendars.ReadWrite",
-    "Files.ReadWrite.All",
-    "Contacts.ReadWrite",
+    "User.Read",
+    "Files.Read",
     "offline_access",
 ]
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
@@ -40,6 +49,7 @@ def load_auth_state() -> Dict[str, Any]:
 def save_auth_state(data: Dict[str, Any]) -> None:
     with AUTH_FILE.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+    AUTH_FILE.chmod(0o600)
 
 
 def append_log(entry: Dict[str, Any]) -> None:

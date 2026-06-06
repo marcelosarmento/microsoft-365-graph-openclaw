@@ -18,13 +18,15 @@ security:
 
 ## 1. Quick prerequisites
 1. Python 3 with `requests` installed.
-2. Default auth values:
-   - Client ID (personal-account default): `952d1b34-682e-48ce-9c54-bac5a96cbd42`
-   - Tenant (personal-account default): `consumers`
-   - Default scopes: `Mail.ReadWrite Mail.Send Calendars.ReadWrite Files.ReadWrite.All Contacts.ReadWrite offline_access`
+2. Personal-first auth values:
+   - Client ID (Tuco personal-account app): `e8ee2c58-635e-491f-99f7-c60b63b70f64`
+   - Tenant: `consumers`
+   - Default scopes: `User.Read Files.Read offline_access`
+   - The App Registration must allow Microsoft personal accounts and public client/device-code flow.
    - For work/school accounts, use `--tenant-id organizations` (or tenant GUID) and a tenant-approved `--client-id`.
-   - The public default client ID is for quick testing. For production, prefer your own App Registration.
-3. Tokens are stored in `state/graph_auth.json` (ignored by git).
+3. Tokens are stored outside the repo by default at `~/.openclaw/graph/personal-token.json`.
+   - Override with `GRAPH_PROFILE`, `GRAPH_HOME`, or `GRAPH_AUTH_FILE` when needed.
+   - Token files are written with `0600` permissions.
 4. Push-mode runtime values (service-level):
    - These values are loaded by systemd services from `/etc/default/graph-mail-webhook` (usually written by setup scripts).
    - `OPENCLAW_HOOK_URL` (required)
@@ -38,7 +40,6 @@ Permission profiles (least privilege by use case) are documented in `docs/permis
 1. Run:
    ```bash
    python scripts/graph_auth.py device-login \
-     --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 \
      --tenant-id consumers
    ```
 2. The script prints a **URL** and **device code**.
@@ -48,7 +49,9 @@ Permission profiles (least privilege by use case) are documented in `docs/permis
    - `python scripts/graph_auth.py refresh`  
    - `python scripts/graph_auth.py clear`
 5. Other scripts call `utils.get_access_token()`, which refreshes tokens automatically when needed.
-6. Scope override is disabled in `graph_auth.py`; the skill always uses `DEFAULT_SCOPES`.
+6. The default auth flow intentionally requests only `User.Read Files.Read offline_access`.
+   - Add scopes only when enabling a module that needs them, for example `--scope Files.ReadWrite`.
+   - Mail, calendar, and contacts scopes are not part of the first personal-account baseline.
 
 Detailed reference: [`references/auth.md`](references/auth.md).
 
