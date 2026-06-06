@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Tuple
 
 import requests
 
-from utils import STATE_DIR, append_log, authorized_request, cli_main, graph_url
+from utils import STATE_DIR, add_profile_argument, append_log, authorized_request, cli_main, configure_profile_from_args, graph_url
 
 DEFAULT_QUEUE_FILE = STATE_DIR / "mail_webhook_queue.jsonl"
 DEFAULT_DEDUPE_FILE = STATE_DIR / "mail_webhook_dedupe.json"
@@ -215,6 +215,7 @@ def handle_loop(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Process queued Graph mail webhook notifications.")
+    add_profile_argument(parser)
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_shared(p: argparse.ArgumentParser) -> None:
@@ -252,6 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
 def handler() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    configure_profile_from_args(args)
     if args.command == "once":
         handle_once(args)
     elif args.command == "loop":

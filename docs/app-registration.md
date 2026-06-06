@@ -55,6 +55,7 @@ Example:
 
 ```bash
 python3 scripts/graph_auth.py device-login \
+  --profile work \
   --client-id "<TEU_APPLICATION_CLIENT_ID>" \
   --tenant-id organizations
 ```

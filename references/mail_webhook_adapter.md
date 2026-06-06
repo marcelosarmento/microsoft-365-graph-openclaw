@@ -11,6 +11,18 @@ For first-time setup, EC2/Caddy/systemd installation, OpenClaw hook configuratio
 - Do not run `sudo`, write `/etc`, edit Caddy/systemd, or patch OpenClaw config from this reference.
 - Use `--hook-action agent` only when explicitly requested; default push behavior is `wake` to `/hooks/wake`.
 
+
+## Profile selection
+
+Mail subscriptions and the optional `agent` worker fetch must use the Graph profile for the mailbox that owns the subscription. If the push pipeline was created with the backward-compatible `default` profile, no extra flag is needed. For another mailbox, prefer the environment form so it also fits services and automation:
+
+```bash
+GRAPH_PROFILE=work python3 scripts/mail_subscriptions.py list
+GRAPH_PROFILE=work python3 scripts/mail_webhook_worker.py once --dry-run
+```
+
+For CLI selection on subcommand scripts, put `--profile` before the subcommand: `python3 scripts/mail_subscriptions.py --profile work list`.
+
 ## Components
 
 - `scripts/mail_webhook_adapter.py`: HTTP endpoint for Graph validation and notification enqueue.
@@ -40,19 +52,19 @@ Do not print token values in user-visible logs.
 List subscriptions:
 
 ```bash
-python3 scripts/mail_subscriptions.py list
+GRAPH_PROFILE=work python3 scripts/mail_subscriptions.py list
 ```
 
 Check one subscription:
 
 ```bash
-python3 scripts/mail_subscriptions.py status --id "<subscription-id>"
+GRAPH_PROFILE=work python3 scripts/mail_subscriptions.py status --id "<subscription-id>"
 ```
 
 Renew one subscription:
 
 ```bash
-python3 scripts/mail_subscriptions.py renew \
+GRAPH_PROFILE=work python3 scripts/mail_subscriptions.py renew \
   --id "<subscription-id>" \
   --minutes 4200
 ```
@@ -60,7 +72,7 @@ python3 scripts/mail_subscriptions.py renew \
 Create a subscription only when the public HTTPS endpoint and `GRAPH_WEBHOOK_CLIENT_STATE` are already configured:
 
 ```bash
-python3 scripts/mail_subscriptions.py create \
+GRAPH_PROFILE=work python3 scripts/mail_subscriptions.py create \
   --notification-url "https://graph-hook.example.com/graph/mail" \
   --client-state "$GRAPH_WEBHOOK_CLIENT_STATE" \
   --minutes 4200
@@ -81,7 +93,7 @@ python3 scripts/mail_webhook_adapter.py serve \
 Run worker in the foreground:
 
 ```bash
-python3 scripts/mail_webhook_worker.py loop \
+GRAPH_PROFILE=work python3 scripts/mail_webhook_worker.py loop \
   --session-key "$OPENCLAW_SESSION_KEY" \
   --hook-url "$OPENCLAW_HOOK_URL" \
   --hook-token "$OPENCLAW_HOOK_TOKEN"

@@ -32,7 +32,7 @@ This skill gives an agent operational access to Microsoft Graph for Outlook mail
 
 - Run commands from the repository root.
 - Python 3 and `requests` must be available.
-- Tokens live in `state/graph_auth.json` and are ignored by git.
+- Tokens live in `state/graph_auth.json` for the backward-compatible `default` profile and `state/graph_auth.<profile>.json` for named profiles. All token files are ignored by git.
 - Script activity is appended to `state/graph_ops.log`; do not commit logs.
 - Default app values:
   - Client ID: `952d1b34-682e-48ce-9c54-bac5a96cbd42`
@@ -42,24 +42,51 @@ This skill gives an agent operational access to Microsoft Graph for Outlook mail
 
 Permission profiles are in [`docs/permission-profiles.md`](docs/permission-profiles.md). App-registration setup is in [`docs/app-registration.md`](docs/app-registration.md).
 
+
+## Profiles / account contexts
+
+Use **profiles** when the same agent needs more than one Microsoft Graph account. Recommended names are `personal`, `work`, and specific names like `work-empresa1` for additional tenants.
+
+- If no profile is provided, scripts use `default` and the existing `state/graph_auth.json` token cache. This preserves the original single-login workflow.
+- Named profiles use separate token files such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
+- For OpenClaw-style simplicity, prefer per-command environment selection: `GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 20`.
+- CLI selection is also supported. Auth commands use `--profile` after the auth subcommand; scripts with subcommands use `--profile` before the subcommand.
+
+Authenticate each profile separately:
+
+```bash
+python3 scripts/graph_auth.py device-login --profile personal --tenant-id consumers
+python3 scripts/graph_auth.py device-login --profile work --tenant-id organizations
+```
+
+Check the target profile before account-sensitive operations:
+
+```bash
+python3 scripts/graph_auth.py status --profile personal
+python3 scripts/graph_auth.py status --profile work
+```
+
+See [`references/auth.md`](references/auth.md) for profile naming, token paths, and command syntax.
+
 ## Auth commands
 
-Start device-code login:
+Start device-code login for the target profile:
 
 ```bash
 python3 scripts/graph_auth.py device-login \
+  --profile personal \
   --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 \
   --tenant-id consumers
 ```
 
-For work/school accounts, use `--tenant-id organizations` or the tenant GUID.
+For work/school accounts, use `--profile work` with `--tenant-id organizations` or the tenant GUID.
 
-Check and maintain auth state:
+Check and maintain auth state for the target profile:
 
 ```bash
-python3 scripts/graph_auth.py status
-python3 scripts/graph_auth.py refresh
-python3 scripts/graph_auth.py clear
+python3 scripts/graph_auth.py status --profile personal
+python3 scripts/graph_auth.py refresh --profile personal
+python3 scripts/graph_auth.py clear --profile personal
 ```
 
 Other Graph scripts call `utils.get_access_token()` and refresh tokens automatically when possible. Scope override is intentionally disabled; the skill uses `DEFAULT_SCOPES`.
@@ -69,10 +96,10 @@ Other Graph scripts call `utils.get_access_token()` and refresh tokens automatic
 ### Mail
 
 ```bash
-python3 scripts/mail_fetch.py --folder Inbox --top 20 --unread
-python3 scripts/mail_fetch.py --id "<messageId>" --include-body --mark-read
-python3 scripts/mail_fetch.py --id "<messageId>" --move-to "<folderId>"
-python3 scripts/mail_send.py --to user@example.com --subject "Update" --body-file replies/update.html --html
+GRAPH_PROFILE=personal python3 scripts/mail_fetch.py --folder Inbox --top 20 --unread
+GRAPH_PROFILE=work python3 scripts/mail_fetch.py --id "<messageId>" --include-body --mark-read
+GRAPH_PROFILE=work python3 scripts/mail_fetch.py --id "<messageId>" --move-to "<folderId>"
+GRAPH_PROFILE=work python3 scripts/mail_send.py --to user@example.com --subject "Update" --body-file replies/update.html --html
 ```
 
 Use `--no-save-copy` only when the user intentionally does not want a Sent Items copy.
@@ -80,10 +107,10 @@ Use `--no-save-copy` only when the user intentionally does not want a Sent Items
 ### Calendar
 
 ```bash
-python3 scripts/calendar_sync.py list --start 2026-03-03T00:00Z --end 2026-03-05T23:59Z --top 50
-python3 scripts/calendar_sync.py create --subject "Meeting" --start 2026-03-05T12:00 --end 2026-03-05T13:00 --tz UTC --attendees person@example.com
-python3 scripts/calendar_sync.py update "<eventId>" --start 2026-03-05T12:30 --end 2026-03-05T13:30
-python3 scripts/calendar_sync.py cancel "<eventId>" --message "Rescheduling this event."
+GRAPH_PROFILE=work python3 scripts/calendar_sync.py list --start 2026-03-03T00:00Z --end 2026-03-05T23:59Z --top 50
+GRAPH_PROFILE=work python3 scripts/calendar_sync.py create --subject "Meeting" --start 2026-03-05T12:00 --end 2026-03-05T13:00 --tz UTC --attendees person@example.com
+GRAPH_PROFILE=work python3 scripts/calendar_sync.py update "<eventId>" --start 2026-03-05T12:30 --end 2026-03-05T13:30
+GRAPH_PROFILE=work python3 scripts/calendar_sync.py cancel "<eventId>" --message "Rescheduling this event."
 ```
 
 For personal Microsoft accounts (`tenant=consumers`), Graph may not return a Teams join URL even when `--online` is used.
@@ -91,10 +118,10 @@ For personal Microsoft accounts (`tenant=consumers`), Graph may not return a Tea
 ### OneDrive
 
 ```bash
-python3 scripts/drive_ops.py list --path /
-python3 scripts/drive_ops.py upload --local notes/briefing.docx --remote /Clients/briefing.docx
-python3 scripts/drive_ops.py download --remote /Clients/briefing.docx --local /tmp/briefing.docx
-python3 scripts/drive_ops.py share --remote /Clients/briefing.docx
+GRAPH_PROFILE=personal python3 scripts/drive_ops.py list --path /
+GRAPH_PROFILE=personal python3 scripts/drive_ops.py upload --local notes/briefing.docx --remote /Clients/briefing.docx
+GRAPH_PROFILE=personal python3 scripts/drive_ops.py download --remote /Clients/briefing.docx --local /tmp/briefing.docx
+GRAPH_PROFILE=personal python3 scripts/drive_ops.py share --remote /Clients/briefing.docx
 ```
 
 The drive script resolves localized/special-folder aliases such as `Documents` and `Documentos`.
@@ -102,11 +129,11 @@ The drive script resolves localized/special-folder aliases such as `Documents` a
 ### Contacts
 
 ```bash
-python3 scripts/contacts_ops.py list --top 20
-python3 scripts/contacts_ops.py list --search "Jane"
-python3 scripts/contacts_ops.py create --given-name Jane --surname Doe --email jane.doe@example.com
-python3 scripts/contacts_ops.py update "<contactId>" --mobile "+1 555 0123"
-python3 scripts/contacts_ops.py delete "<contactId>"
+GRAPH_PROFILE=work python3 scripts/contacts_ops.py list --top 20
+GRAPH_PROFILE=work python3 scripts/contacts_ops.py list --search "Jane"
+GRAPH_PROFILE=work python3 scripts/contacts_ops.py create --given-name Jane --surname Doe --email jane.doe@example.com
+GRAPH_PROFILE=work python3 scripts/contacts_ops.py update "<contactId>" --mobile "+1 555 0123"
+GRAPH_PROFILE=work python3 scripts/contacts_ops.py delete "<contactId>"
 ```
 
 ## Push-mode boundary
@@ -132,10 +159,11 @@ When run without `--dry-run`, they can write `/etc/default/graph-mail-webhook`, 
 
 | Symptom | First action |
 | --- | --- |
-| Auth status missing/expired | `python3 scripts/graph_auth.py status`, then `refresh` or device login. |
+| Auth status missing/expired | `python3 scripts/graph_auth.py status --profile <name>`, then `refresh` or device login for that profile. |
 | `401` / `invalid_grant` | Refresh; if it still fails, clear and repeat device login. |
 | `403` / `AccessDenied` | Confirm scopes/consent and account policy. |
 | `429` / throttling | Wait and retry; scripts include basic retry behavior. |
+| Operation hits the wrong account | Re-run with `GRAPH_PROFILE=<name>` or `--profile <name>`. |
 | Push queue/log issue | Use [`references/mail_webhook_adapter.md`](references/mail_webhook_adapter.md), not setup scripts, unless setup was requested. |
 
 This skill should keep daily agent work on the unprivileged Graph scripts and keep setup/infra material out of the main path.

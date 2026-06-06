@@ -1,5 +1,9 @@
 # Mail Reference
 
+## Profile selection
+
+Choose the mailbox context before reading, moving, or sending mail. Use `GRAPH_PROFILE=personal` or `GRAPH_PROFILE=work` for a per-command choice, or pass `--profile <name>` to `mail_fetch.py` / `mail_send.py`. If omitted, the backward-compatible `default` profile is used. See [`auth.md`](auth.md).
+
 ## Listing
 
 ```

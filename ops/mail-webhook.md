@@ -4,6 +4,10 @@ Use this runbook only when explicitly asked for mail push setup, webhook infrast
 
 This guide documents the push architecture for mail notifications using Microsoft Graph + OpenClaw hooks.
 
+## Profile note
+
+Webhook setup remains default-profile compatible. If the webhook mailbox should use a named profile, authenticate that profile first and make sure subscription/worker commands run with the same `GRAPH_PROFILE=<name>` environment. Keep this as an explicit setup decision; daily agent commands should continue to select profiles per command.
+
 ## 1) Components
 
 - `mail_webhook_adapter.py`: HTTP endpoint for Graph webhook delivery (handshake + enqueue).
@@ -144,7 +148,7 @@ If verdict is `PARTIAL`, the script output lists exactly what is missing.
 ## 5) Internal setup checklist (host)
 
 - [ ] Python runtime with dependencies installed (`requests`).
-- [ ] OAuth device login completed and token available at `state/graph_auth.json`.
+- [ ] OAuth device login completed for the selected profile (`state/graph_auth.json` for `default`, or `state/graph_auth.<profile>.json` for named profiles).
 - [ ] Adapter process running as service (systemd, pm2, supervisor, container).
 - [ ] Worker process running (loop mode) with retry/backoff defaults.
 - [ ] Renewal job scheduled before expiration (cron/systemd timer).

@@ -42,7 +42,7 @@ Skill:
 - `microsoft-365-graph-openclaw`
 
 Capabilities:
-- OAuth device-code auth with refresh handling
+- OAuth device-code auth with refresh handling and separate profiles/token caches
 - Mail, calendar, drive, and contacts automation
 - Daily agent references for auth, mail, calendar, drive, and contacts
 - Optional Graph webhook adapter + worker queue + dedupe
@@ -54,6 +54,26 @@ Capabilities:
 `Microsoft Graph -> webhook endpoint -> queue -> dedupe worker -> /hooks/wake -> OpenClaw`
 
 See full architecture and flow in `docs/architecture.md`.
+
+
+## Multiple Microsoft Graph profiles
+
+The skill supports separate Graph profiles for multiple accounts or tenants. Use `personal` for a Microsoft personal account, `work` for a primary organization account, and names like `work-empresa1` for additional tenants.
+
+- No profile / `default` keeps the original single-login token at `state/graph_auth.json`.
+- Named profiles use separate token caches such as `state/graph_auth.personal.json` and `state/graph_auth.work.json`.
+- For simple OpenClaw usage, prefix any command with `GRAPH_PROFILE=<name>`; auth commands also support `--profile <name>`.
+
+Examples:
+
+```bash
+python3 scripts/graph_auth.py device-login --profile personal --tenant-id consumers
+python3 scripts/graph_auth.py device-login --profile work --tenant-id organizations
+GRAPH_PROFILE=work python3 scripts/mail_fetch.py --folder Inbox --top 10
+GRAPH_PROFILE=personal python3 scripts/drive_ops.py list --path /
+```
+
+See `references/auth.md` for profile naming, token paths, and CLI syntax.
 
 ## Public HTTPS webhook URL prerequisite
 
@@ -158,7 +178,7 @@ If setup checks fail, see `docs/troubleshooting.md` and `docs/faq.md`.
 - The project is self-hosted and production-oriented, with explicit setup and diagnostics.
 - See `SECURITY.md` for threat model and credential revocation guidance.
 - Agent-facing command references by workload:
-  - Auth: `references/auth.md`
+  - Auth and profiles: `references/auth.md`
   - Mail: `references/mail.md`
   - Calendar: `references/calendar.md`
   - Drive: `references/drive.md`

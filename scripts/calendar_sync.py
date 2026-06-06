@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
-from utils import append_log, authorized_request, graph_url, cli_main
+from utils import add_profile_argument, append_log, authorized_request, configure_profile_from_args, graph_url, cli_main
 
 ISO_FORMAT = "%Y-%m-%dT%H:%M"
 
@@ -32,6 +32,7 @@ def attendees_list(addresses: Optional[List[str]] = None) -> List[dict]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage calendar events via Microsoft Graph.")
+    add_profile_argument(parser)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_list = sub.add_parser("list", help="List upcoming events.")
@@ -150,6 +151,7 @@ def handle_cancel(args: argparse.Namespace) -> None:
 def handler():
     parser = build_parser()
     args = parser.parse_args()
+    configure_profile_from_args(args)
     if args.command == "list":
         handle_list(args)
     elif args.command == "create":
