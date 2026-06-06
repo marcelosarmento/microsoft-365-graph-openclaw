@@ -10,8 +10,11 @@ from typing import List
 import requests
 
 sys.path.append(str(Path(__file__).resolve().parent))
-import utils as graph_utils  # noqa: E402
 from utils import (  # noqa: E402
+    DEFAULT_CLIENT_ID,
+    DEFAULT_SCOPES,
+    DEFAULT_TENANT,
+    AUTH_FILE,
     append_log,
     load_auth_state,
     save_auth_state,
@@ -19,7 +22,6 @@ from utils import (  # noqa: E402
     TOKEN_SAFETY_MARGIN,
     _authority,
     _request_token,
-    set_graph_profile,
 )
 
 FULL_SKILL_SCOPES = {
@@ -94,15 +96,9 @@ def poll_for_token(device_data: dict, client_id: str, tenant_id: str) -> dict:
 
 
 def command_device_login(args: argparse.Namespace) -> None:
-    set_graph_profile(args.profile)
-    scopes = normalize_scopes(args.scope) if args.scope else list(graph_utils.DEFAULT_SCOPES)
-    client_id = args.client_id or graph_utils.DEFAULT_CLIENT_ID
-    tenant_id = args.tenant_id or graph_utils.DEFAULT_TENANT
-    if not client_id:
-        raise ValueError(
-            f"Graph profile '{graph_utils.GRAPH_PROFILE}' has no client_id. "
-            "Set the profile-specific GRAPH_*_CLIENT_ID env var or pass --client-id."
-        )
+    scopes = normalize_scopes(args.scope) if args.scope else list(DEFAULT_SCOPES)
+    client_id = args.client_id or DEFAULT_CLIENT_ID
+    tenant_id = args.tenant_id or DEFAULT_TENANT
     validate_scope_tenant_compatibility(scopes, tenant_id)
     device = request_device_code(client_id, scopes, tenant_id)
     verification_uri = device.get("verification_uri") or device.get("verification_uri_complete")
@@ -119,7 +115,7 @@ def command_device_login(args: argparse.Namespace) -> None:
     }
     save_auth_state(state)
     append_log({"action": "auth_login", "tenant": tenant_id, "scopes": scopes})
-    print(f"Authorization successful. Tokens saved to {graph_utils.AUTH_FILE}")
+    print(f"Authorization successful. Tokens saved to {AUTH_FILE}")
 
 
 def normalize_scopes(values: List[str]) -> List[str]:
@@ -129,19 +125,18 @@ def normalize_scopes(values: List[str]) -> List[str]:
     return scopes
 
 
-def command_refresh(args: argparse.Namespace) -> None:
-    set_graph_profile(args.profile)
+def command_refresh(_: argparse.Namespace) -> None:
     state = load_auth_state()
     if not state.get("token"):
         raise RuntimeError("No token found. Run device-login first.")
     token = _request_token(
         {
-            "client_id": state.get("client_id", graph_utils.DEFAULT_CLIENT_ID),
+            "client_id": state.get("client_id", DEFAULT_CLIENT_ID),
             "grant_type": "refresh_token",
             "refresh_token": state["token"].get("refresh_token"),
-            "scope": " ".join(state.get("scopes", graph_utils.DEFAULT_SCOPES)),
+            "scope": " ".join(state.get("scopes", DEFAULT_SCOPES)),
         },
-        state.get("tenant_id", graph_utils.DEFAULT_TENANT),
+        state.get("tenant_id", DEFAULT_TENANT),
     )
     state["token"] = token
     save_auth_state(state)
@@ -149,8 +144,7 @@ def command_refresh(args: argparse.Namespace) -> None:
     print("Token refreshed.")
 
 
-def command_status(args: argparse.Namespace) -> None:
-    set_graph_profile(args.profile)
+def command_status(_: argparse.Namespace) -> None:
     state = load_auth_state()
     if not state:
         print("No saved auth state.")
@@ -165,10 +159,9 @@ def command_status(args: argparse.Namespace) -> None:
         print("Expired?", token_expired(token))
 
 
-def command_clear(args: argparse.Namespace) -> None:
-    set_graph_profile(args.profile)
-    if graph_utils.AUTH_FILE.exists():
-        graph_utils.AUTH_FILE.unlink()
+def command_clear(_: argparse.Namespace) -> None:
+    if AUTH_FILE.exists():
+        AUTH_FILE.unlink()
     append_log({"action": "auth_clear"})
     print("Authentication state removed.")
 
@@ -190,21 +183,17 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_login = sub.add_parser("device-login", help="Start device-code sign-in flow.")
-    p_login.add_argument("--profile", help="Auth profile to use (personal, work, brq).", default=None)
-    p_login.add_argument("--client-id", help="Override profile Client ID.", default=None)
-    p_login.add_argument("--tenant-id", help="Override profile tenant (consumers, organizations, common, or GUID).", default=None)
+    p_login.add_argument("--client-id", help="Client ID to use", default=DEFAULT_CLIENT_ID)
+    p_login.add_argument("--tenant-id", help="Tenant (consumers, organizations, common, or GUID)", default=DEFAULT_TENANT)
     p_login.add_argument(
         "--scope",
         action="append",
         help="OAuth scope to request. Repeat for multiple scopes. Defaults to minimal personal OneDrive scopes.",
     )
 
-    p_refresh = sub.add_parser("refresh", help="Force immediate token refresh.")
-    p_refresh.add_argument("--profile", help="Auth profile to use (personal, work, brq).", default=None)
-    p_status = sub.add_parser("status", help="Show current auth/token status.")
-    p_status.add_argument("--profile", help="Auth profile to use (personal, work, brq).", default=None)
-    p_clear = sub.add_parser("clear", help="Delete saved token state.")
-    p_clear.add_argument("--profile", help="Auth profile to use (personal, work, brq).", default=None)
+    sub.add_parser("refresh", help="Force immediate token refresh.")
+    sub.add_parser("status", help="Show current auth/token status.")
+    sub.add_parser("clear", help="Delete saved token state.")
     return parser
 
 

@@ -7,7 +7,7 @@ The personal-first baseline uses Tuco's own App Registration in the Stridesense 
 - **Client ID:** `e8ee2c58-635e-491f-99f7-c60b63b70f64`
 - **Tenant:** `consumers`
 - **Default scopes:** `User.Read Files.Read offline_access`
-- **Token cache:** `~/.openclaw/workspace/.private/graph/personal-token.json`
+- **Token cache:** `~/.openclaw/graph/personal-token.json`
 
 The App Registration must:
 - Support **Personal Microsoft accounts only** or another mode that includes personal Microsoft accounts.
@@ -23,24 +23,6 @@ The App Registration must:
 - **Use when**: you authenticate with Microsoft personal accounts (MSA), without corporate Entra ID.
 - **Initial scope**: OneDrive read-only baseline (`Files.Read`) plus `User.Read` and `offline_access`.
 
-### Profile model
-
-Use explicit profiles from the beginning:
-
-- `personal`: Tuco personal Microsoft account (`tenant=consumers`).
-- `work`: generic work/school profile (`tenant=organizations` unless overridden).
-- `brq`: BRQ-specific work/school profile (`tenant=organizations` unless overridden).
-
-Each profile has its own token cache:
-
-```text
-~/.openclaw/workspace/.private/graph/personal-token.json
-~/.openclaw/workspace/.private/graph/work-token.json
-~/.openclaw/workspace/.private/graph/brq-token.json
-```
-
-Set `GRAPH_HOME` to relocate all profile token files. Use `GRAPH_AUTH_FILE` only for one-off overrides.
-
 ### Work/school account (Microsoft Entra ID / Azure AD)
 
 - **Default:** use an approved App Registration owned by the target organization with `--tenant-id organizations` (or tenant GUID).
@@ -55,12 +37,12 @@ Set `GRAPH_HOME` to relocate all profile token files. Use `GRAPH_AUTH_FILE` only
 
 ## Assisted device-code flow
 
-1. Run (personal-account profile): `python3 scripts/graph_auth.py device-login --profile personal`  
-   Or work/school: `python3 scripts/graph_auth.py device-login --profile work --client-id <approved-app-id> --tenant-id organizations`
+1. Run (personal-account profile): `python3 scripts/graph_auth.py device-login --tenant-id consumers`  
+   Or work/school: `python3 scripts/graph_auth.py device-login --client-id <approved-app-id> --tenant-id organizations`
 2. The script prints **URL** and **code**.
 3. Open `https://microsoft.com/devicelogin`, paste the code, and authorize.
-4. On success, the script saves `~/.openclaw/workspace/.private/graph/<profile>-token.json` with `access_token`, `refresh_token`, expiration, and scopes.
-5. Tokens auto-refresh before requests. To force refresh: `python3 scripts/graph_auth.py refresh --profile personal`.
+4. On success, the script saves `~/.openclaw/graph/personal-token.json` with `access_token`, `refresh_token`, expiration, and scopes.
+5. Tokens auto-refresh before requests. To force refresh: `python3 scripts/graph_auth.py refresh`.
 6. Scopes default to the personal OneDrive read-only baseline. Add scopes explicitly only when enabling modules:
    ```bash
    python3 scripts/graph_auth.py device-login \
@@ -69,7 +51,7 @@ Set `GRAPH_HOME` to relocate all profile token files. Use `GRAPH_AUTH_FILE` only
      --scope offline_access
    ```
 
-## `~/.openclaw/workspace/.private/graph/personal-token.json` structure
+## `~/.openclaw/graph/personal-token.json` structure
 
 ```json
 {
@@ -84,9 +66,7 @@ Set `GRAPH_HOME` to relocate all profile token files. Use `GRAPH_AUTH_FILE` only
 }
 ```
 
-Never commit this file. It lives outside the repo by default.
-
-This workspace path is intended to reduce accidental cross-agent use. It is not hard isolation if multiple agents run as the same Linux user with broad filesystem access. For true separation, use separate OS users, sandboxing, or a secret-gated tool.
+Never commit this file. It lives outside the repo by default and is written with `0600` permissions.
 
 ## Common errors
 
