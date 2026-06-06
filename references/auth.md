@@ -1,31 +1,23 @@
 # Auth Reference
 
-## Main path: Tuco personal Microsoft account
+## Main path: use the Alitar app
 
-The personal-first baseline uses Tuco's own App Registration in the Stridesense tenant.
+You do not need to create an App Registration to get started. The skill uses **Openclaw Graph Integration by Alitar.one** by default (Client ID: `952d1b34-682e-48ce-9c54-bac5a96cbd42`). Run device login and grant consent.
 
-- **Client ID:** `e8ee2c58-635e-491f-99f7-c60b63b70f64`
-- **Tenant:** `consumers`
-- **Default scopes:** `User.Read Files.Read offline_access`
-- **Token cache:** `~/.openclaw/graph/personal-token.json`
-
-The App Registration must:
-- Support **Personal Microsoft accounts only** or another mode that includes personal Microsoft accounts.
-- Be configured as a public client for device-code flow.
-- Use conservative delegated permissions first; expand scopes only per module.
+- **Personal account (Outlook, Hotmail):** `--tenant-id consumers`
+- **Work/school account (Entra ID):** `--tenant-id organizations` (or the tenant GUID)
 
 ## Recommended authentication profiles
 
 ### Personal Microsoft account (`@outlook.com`, `@hotmail.com`, Microsoft 365 Family)
 
-- **Skill default Client ID**: `e8ee2c58-635e-491f-99f7-c60b63b70f64`
+- **Skill default Client ID**: `952d1b34-682e-48ce-9c54-bac5a96cbd42` (Alitar)
 - **Skill default tenant**: `consumers`
 - **Use when**: you authenticate with Microsoft personal accounts (MSA), without corporate Entra ID.
-- **Initial scope**: OneDrive read-only baseline (`Files.Read`) plus `User.Read` and `offline_access`.
 
 ### Work/school account (Microsoft Entra ID / Azure AD)
 
-- **Default:** use an approved App Registration owned by the target organization with `--tenant-id organizations` (or tenant GUID).
+- **Default:** use the Alitar Client ID with `--tenant-id organizations` (or tenant GUID).
 - **Optional:** if your organization already has an approved App Registration, use `--client-id <your-app-id>` and `--tenant-id <tenant-id>`. See [Create Your Own App Registration](../docs/app-registration.md) for portal steps.
 - **Suggested scopes** (for your own app):
   - `Mail.ReadWrite`
@@ -37,27 +29,21 @@ The App Registration must:
 
 ## Assisted device-code flow
 
-1. Run (personal-account profile): `python3 scripts/graph_auth.py device-login --tenant-id consumers`  
-   Or work/school: `python3 scripts/graph_auth.py device-login --client-id <approved-app-id> --tenant-id organizations`
+1. Run (personal-account profile): `python3 scripts/graph_auth.py device-login --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 --tenant-id consumers`  
+   Or work/school: `python3 scripts/graph_auth.py device-login --client-id 952d1b34-682e-48ce-9c54-bac5a96cbd42 --tenant-id organizations`
 2. The script prints **URL** and **code**.
 3. Open `https://microsoft.com/devicelogin`, paste the code, and authorize.
-4. On success, the script saves `~/.openclaw/graph/personal-token.json` with `access_token`, `refresh_token`, expiration, and scopes.
+4. On success, the script saves `state/graph_auth.json` with `access_token`, `refresh_token`, expiration, and scopes.
 5. Tokens auto-refresh before requests. To force refresh: `python3 scripts/graph_auth.py refresh`.
-6. Scopes default to the personal OneDrive read-only baseline. Add scopes explicitly only when enabling modules:
-   ```bash
-   python3 scripts/graph_auth.py device-login \
-     --scope User.Read \
-     --scope Files.ReadWrite \
-     --scope offline_access
-   ```
+6. Scopes are fixed by the skill defaults; scope override via CLI is intentionally disabled.
 
-## `~/.openclaw/graph/personal-token.json` structure
+## `state/graph_auth.json` structure
 
 ```json
 {
-  "client_id": "e8ee2c58-635e-491f-99f7-c60b63b70f64",
+  "client_id": "952d1b34-682e-48ce-9c54-bac5a96cbd42",
   "tenant_id": "consumers",
-  "scopes": ["User.Read", "Files.Read", "offline_access"],
+  "scopes": ["Mail.ReadWrite", "Mail.Send", ...],
   "token": {
     "access_token": "...",
     "refresh_token": "...",
@@ -66,7 +52,7 @@ The App Registration must:
 }
 ```
 
-Never commit this file. It lives outside the repo by default and is written with `0600` permissions.
+Never commit this file (`.gitignore`).
 
 ## Common errors
 
