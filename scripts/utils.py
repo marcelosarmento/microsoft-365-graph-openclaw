@@ -13,28 +13,33 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 STATE_DIR = REPO_ROOT / "state"
 STATE_DIR.mkdir(exist_ok=True)
 
+DEFAULT_WORKSPACE = Path(os.getenv("OPENCLAW_WORKSPACE", "~/.openclaw/workspace")).expanduser()
+GRAPH_HOME = Path(os.getenv("GRAPH_HOME", str(DEFAULT_WORKSPACE / ".private" / "graph"))).expanduser()
+
+PROFILE_DEFAULTS = {
+    "personal": {
+        "client_id": os.getenv("GRAPH_PERSONAL_CLIENT_ID", "e8ee2c58-635e-491f-99f7-c60b63b70f64"),
+        "tenant_id": os.getenv("GRAPH_PERSONAL_TENANT_ID", "consumers"),
+        "scopes": os.getenv("GRAPH_PERSONAL_SCOPES", "User.Read Files.Read offline_access").split(),
+    },
+    "work": {
+        "client_id": os.getenv("GRAPH_WORK_CLIENT_ID", os.getenv("GRAPH_CLIENT_ID", "")),
+        "tenant_id": os.getenv("GRAPH_WORK_TENANT_ID", os.getenv("GRAPH_TENANT_ID", "organizations")),
+        "scopes": os.getenv("GRAPH_WORK_SCOPES", "User.Read Files.Read offline_access").split(),
+    },
+    "brq": {
+        "client_id": os.getenv("GRAPH_BRQ_CLIENT_ID", os.getenv("GRAPH_CLIENT_ID", "")),
+        "tenant_id": os.getenv("GRAPH_BRQ_TENANT_ID", os.getenv("GRAPH_TENANT_ID", "organizations")),
+        "scopes": os.getenv("GRAPH_BRQ_SCOPES", "User.Read Files.Read offline_access").split(),
+    },
+}
+
 GRAPH_PROFILE = os.getenv("GRAPH_PROFILE", "personal")
-GRAPH_HOME = Path(os.getenv("GRAPH_HOME", "~/.openclaw/graph")).expanduser()
-GRAPH_HOME.mkdir(mode=0o700, parents=True, exist_ok=True)
-
-AUTH_FILE = Path(
-    os.getenv("GRAPH_AUTH_FILE", str(GRAPH_HOME / f"{GRAPH_PROFILE}-token.json"))
-).expanduser()
-AUTH_FILE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-LOG_FILE = Path(
-    os.getenv("GRAPH_LOG_FILE", str(GRAPH_HOME / f"{GRAPH_PROFILE}-ops.log"))
-).expanduser()
-LOG_FILE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-
-# Default app/tenant tuned for Tuco's personal Microsoft account tests.
-# Override with GRAPH_CLIENT_ID / GRAPH_TENANT_ID or CLI args when needed.
-DEFAULT_CLIENT_ID = os.getenv("GRAPH_CLIENT_ID", "e8ee2c58-635e-491f-99f7-c60b63b70f64")
-DEFAULT_TENANT = os.getenv("GRAPH_TENANT_ID", "consumers")
-DEFAULT_SCOPES = [
-    "User.Read",
-    "Files.Read",
-    "offline_access",
-]
+DEFAULT_CLIENT_ID = ""
+DEFAULT_TENANT = ""
+DEFAULT_SCOPES = []
+AUTH_FILE = Path()
+LOG_FILE = Path()
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 TOKEN_SAFETY_MARGIN = 120  # seconds
 
@@ -49,7 +54,6 @@ def load_auth_state() -> Dict[str, Any]:
 def save_auth_state(data: Dict[str, Any]) -> None:
     with AUTH_FILE.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-    AUTH_FILE.chmod(0o600)
 
 
 def append_log(entry: Dict[str, Any]) -> None:
@@ -61,6 +65,37 @@ def append_log(entry: Dict[str, Any]) -> None:
 def _authority(tenant_id: Optional[str] = None) -> str:
     tenant = tenant_id or DEFAULT_TENANT
     return f"https://login.microsoftonline.com/{tenant}"
+
+
+def profile_defaults(profile: Optional[str] = None) -> Dict[str, Any]:
+    selected = profile or GRAPH_PROFILE
+    if selected not in PROFILE_DEFAULTS:
+        known = ", ".join(sorted(PROFILE_DEFAULTS))
+        raise ValueError(f"Unknown Graph profile '{selected}'. Known profiles: {known}.")
+    return PROFILE_DEFAULTS[selected]
+
+
+def set_graph_profile(profile: Optional[str] = None) -> None:
+    global GRAPH_PROFILE, DEFAULT_CLIENT_ID, DEFAULT_TENANT, DEFAULT_SCOPES, AUTH_FILE, LOG_FILE
+
+    GRAPH_PROFILE = profile or os.getenv("GRAPH_PROFILE", "personal")
+    defaults = profile_defaults(GRAPH_PROFILE)
+    DEFAULT_CLIENT_ID = defaults["client_id"]
+    DEFAULT_TENANT = defaults["tenant_id"]
+    DEFAULT_SCOPES = list(defaults["scopes"])
+
+    GRAPH_HOME.mkdir(parents=True, exist_ok=True)
+    AUTH_FILE = Path(
+        os.getenv("GRAPH_AUTH_FILE", str(GRAPH_HOME / f"{GRAPH_PROFILE}-token.json"))
+    ).expanduser()
+    AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LOG_FILE = Path(
+        os.getenv("GRAPH_LOG_FILE", str(GRAPH_HOME / f"{GRAPH_PROFILE}-ops.log"))
+    ).expanduser()
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+
+set_graph_profile(GRAPH_PROFILE)
 
 
 def token_expired(token: Dict[str, Any]) -> bool:

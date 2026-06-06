@@ -24,10 +24,11 @@ security:
    - Default scopes: `User.Read Files.Read offline_access`
    - The App Registration must allow Microsoft personal accounts and public client/device-code flow.
    - For work/school accounts, use `--tenant-id organizations` (or tenant GUID) and a tenant-approved `--client-id`.
-3. Tokens are stored outside the repo by default at `~/.openclaw/graph/personal-token.json`.
+3. Profiles are explicit. Use `--profile personal`, `--profile work`, or `--profile brq`.
+4. Tokens are stored outside the repo by default at `~/.openclaw/workspace/.private/graph/<profile>-token.json`.
    - Override with `GRAPH_PROFILE`, `GRAPH_HOME`, or `GRAPH_AUTH_FILE` when needed.
-   - Token files are written with `0600` permissions.
-4. Push-mode runtime values (service-level):
+   - This is workspace-scoped organization, not hard security isolation between processes running as the same OS user.
+5. Push-mode runtime values (service-level):
    - These values are loaded by systemd services from `/etc/default/graph-mail-webhook` (usually written by setup scripts).
    - `OPENCLAW_HOOK_URL` (required)
    - `OPENCLAW_HOOK_TOKEN` (required)
@@ -40,14 +41,15 @@ Permission profiles (least privilege by use case) are documented in `docs/permis
 1. Run:
    ```bash
    python scripts/graph_auth.py device-login \
+     --profile personal \
      --tenant-id consumers
    ```
 2. The script prints a **URL** and **device code**.
 3. Open `https://microsoft.com/devicelogin`, enter the code, and approve with the target account.
 4. Check and manage auth state:
-   - `python scripts/graph_auth.py status`  
-   - `python scripts/graph_auth.py refresh`  
-   - `python scripts/graph_auth.py clear`
+   - `python scripts/graph_auth.py status --profile personal`  
+   - `python scripts/graph_auth.py refresh --profile personal`  
+   - `python scripts/graph_auth.py clear --profile personal`
 5. Other scripts call `utils.get_access_token()`, which refreshes tokens automatically when needed.
 6. The default auth flow intentionally requests only `User.Read Files.Read offline_access`.
    - Add scopes only when enabling a module that needs them, for example `--scope Files.ReadWrite`.
